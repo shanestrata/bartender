@@ -78,28 +78,33 @@ router.post('/recipes', requireAuth, async (req, res) => {
 });
 
 router.put('/recipes/:id', requireAuth, async (req, res) => {
-  const r = req.body;
-  let query, params;
-  if (r.image !== undefined) {
-    const imageData = r.image ? Buffer.from(r.image.split(',')[1], 'base64') : null;
-    const imageMime = r.image ? (r.image.split(';')[0].split(':')[1] || 'image/jpeg') : null;
-    query = `UPDATE recipes SET name=$1, method=$2, glass=$3, base_serves=$4,
-             garnishes=$5, notes=$6, variants=$7, ingredients=$8, image=$9, image_mime=$10, updated_at=now()
-             WHERE id=$11 RETURNING id, name, method, glass, base_serves, garnishes, notes, variants, ingredients, created_at, (image IS NOT NULL) AS has_image`;
-    params = [r.name, r.method, r.glass || null, r.baseServes || 1,
-              JSON.stringify(r.garnishes || []), r.notes || null, r.variants || null,
-              JSON.stringify(r.ingredients || []), imageData, imageMime, req.params.id];
-  } else {
-    query = `UPDATE recipes SET name=$1, method=$2, glass=$3, base_serves=$4,
-             garnishes=$5, notes=$6, variants=$7, ingredients=$8, updated_at=now()
-             WHERE id=$9 RETURNING id, name, method, glass, base_serves, garnishes, notes, variants, ingredients, created_at, (image IS NOT NULL) AS has_image`;
-    params = [r.name, r.method, r.glass || null, r.baseServes || 1,
-              JSON.stringify(r.garnishes || []), r.notes || null, r.variants || null,
-              JSON.stringify(r.ingredients || []), req.params.id];
+  try {
+    const r = req.body;
+    let query, params;
+    if (r.image !== undefined) {
+      const imageData = r.image ? Buffer.from(r.image.split(',')[1], 'base64') : null;
+      const imageMime = r.image ? (r.image.split(';')[0].split(':')[1] || 'image/jpeg') : null;
+      query = `UPDATE recipes SET name=$1, method=$2, glass=$3, base_serves=$4,
+               garnishes=$5, notes=$6, variants=$7, ingredients=$8, image=$9, image_mime=$10, updated_at=now()
+               WHERE id=$11 RETURNING id, name, method, glass, base_serves, garnishes, notes, variants, ingredients, created_at, (image IS NOT NULL) AS has_image`;
+      params = [r.name, r.method, r.glass || null, r.baseServes || 1,
+                JSON.stringify(r.garnishes || []), r.notes || null, r.variants || null,
+                JSON.stringify(r.ingredients || []), imageData, imageMime, req.params.id];
+    } else {
+      query = `UPDATE recipes SET name=$1, method=$2, glass=$3, base_serves=$4,
+               garnishes=$5, notes=$6, variants=$7, ingredients=$8, updated_at=now()
+               WHERE id=$9 RETURNING id, name, method, glass, base_serves, garnishes, notes, variants, ingredients, created_at, (image IS NOT NULL) AS has_image`;
+      params = [r.name, r.method, r.glass || null, r.baseServes || 1,
+                JSON.stringify(r.garnishes || []), r.notes || null, r.variants || null,
+                JSON.stringify(r.ingredients || []), req.params.id];
+    }
+    const { rows } = await pool.query(query, params);
+    if (!rows[0]) return res.status(404).json({ error: 'Recipe not found' });
+    res.json(dbToClient(rows[0]));
+  } catch (e) {
+    console.error('[PUT /recipes/:id]', e.message);
+    res.status(500).json({ error: e.message });
   }
-  const { rows } = await pool.query(query, params);
-  if (!rows[0]) return res.status(404).json({ error: 'Not found' });
-  res.json(dbToClient(rows[0]));
 });
 
 router.delete('/recipes/:id', requireAuth, async (req, res) => {
