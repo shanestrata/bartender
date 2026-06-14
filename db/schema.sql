@@ -24,3 +24,7 @@ CREATE TABLE IF NOT EXISTS recipes (
 );
 
 CREATE INDEX IF NOT EXISTS idx_recipes_created ON recipes(created_at DESC);
+
+-- Square crop image per recipe
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS image      BYTEA;
+ALTER TABLE recipes ADD COLUMN IF NOT EXISTS image_mime TEXT;

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import Cropper from 'react-easy-crop'
 
 const C = {
   espresso:       '#2C1F14',
@@ -36,6 +37,70 @@ const GARNISH_CHIPS = ['Orange twist', 'Lemon twist', 'Lime wedge', 'Maraschino 
 
 let _uid = 100
 const uid = () => ++_uid
+
+// ─── Image crop helpers ───────────────────────────────────────────────────────
+
+async function getCroppedDataUrl(imageSrc, croppedAreaPixels) {
+  const image = await new Promise((res, rej) => {
+    const img = new Image()
+    img.onload = () => res(img)
+    img.onerror = rej
+    img.src = imageSrc
+  })
+  const canvas = document.createElement('canvas')
+  const SIZE = 800
+  canvas.width = SIZE
+  canvas.height = SIZE
+  const ctx = canvas.getContext('2d')
+  ctx.drawImage(
+    image,
+    croppedAreaPixels.x, croppedAreaPixels.y,
+    croppedAreaPixels.width, croppedAreaPixels.height,
+    0, 0, SIZE, SIZE
+  )
+  return canvas.toDataURL('image/jpeg', 0.88)
+}
+
+function CropModal({ src, onDone, onCancel }) {
+  const [crop,       setCrop]       = useState({ x: 0, y: 0 })
+  const [zoom,       setZoom]       = useState(1)
+  const [croppedArea, setCroppedArea] = useState(null)
+
+  const onCropComplete = useCallback((_, pixels) => setCroppedArea(pixels), [])
+
+  const handleDone = async () => {
+    const dataUrl = await getCroppedDataUrl(src, croppedArea)
+    onDone(dataUrl)
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(44,31,20,0.88)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ position: 'relative', width: '320px', height: '320px', borderRadius: '12px', overflow: 'hidden' }}>
+        <Cropper
+          image={src}
+          crop={crop}
+          zoom={zoom}
+          aspect={1}
+          onCropChange={setCrop}
+          onZoomChange={setZoom}
+          onCropComplete={onCropComplete}
+        />
+      </div>
+      <input type="range" min={1} max={3} step={0.01} value={zoom} onChange={e => setZoom(Number(e.target.value))}
+        style={{ width: '320px', margin: '18px 0 0', accentColor: C.mahogany }} />
+      <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+        <button onClick={onCancel}
+          style={{ padding: '10px 24px', borderRadius: '8px', border: `0.5px solid rgba(255,255,255,0.2)`, background: 'transparent', color: C.herb, fontFamily: "'Josefin Sans', sans-serif", fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer' }}>
+          Cancel
+        </button>
+        <button onClick={handleDone}
+          style={{ padding: '10px 24px', borderRadius: '8px', border: 'none', background: C.mahogany, color: C.parchment, fontFamily: "'Josefin Sans', sans-serif", fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer' }}>
+          Use photo
+        </button>
+      </div>
+    </div>
+  )
+}
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
@@ -205,8 +270,11 @@ function RecipeCard({ recipe, onClick }) {
       onMouseLeave={() => setHovered(false)}
       style={{ background: C.parchmentLight, borderRadius: '12px', border: `0.5px solid rgba(84,58,39,0.15)`, overflow: 'hidden', cursor: 'pointer', transform: hovered ? 'translateY(-3px)' : 'translateY(0)', transition: 'transform 0.18s ease', display: 'flex', flexDirection: 'column' }}
     >
-      <div style={{ height: '140px', background: C.parchmentMid, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-        <span style={{ fontSize: '44px', opacity: 0.15 }}>🍸</span>
+      <div style={{ height: '140px', background: C.parchmentMid, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+        {recipe.hasImage
+          ? <img src={`/api/recipes/${recipe.id}/image`} alt={recipe.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          : <span style={{ fontSize: '44px', opacity: 0.15 }}>🍸</span>
+        }
         <div style={{ position: 'absolute', top: '10px', left: '10px', background: methodColor[recipe.method] || C.herb, color: C.parchment, padding: '4px 10px', borderRadius: '20px', fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: "'Josefin Sans', sans-serif", fontWeight: 600 }}>
           {recipe.method}
         </div>
@@ -306,7 +374,10 @@ function DetailView({ recipe, setView, onDelete }) {
       </div>
 
       <div style={{ margin: '16px 20px', borderRadius: '14px', background: C.parchmentMid, height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
-        <span style={{ fontSize: '90px', opacity: 0.1 }}>🍸</span>
+        {recipe.hasImage
+          ? <img src={`/api/recipes/${recipe.id}/image`} alt={recipe.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          : <span style={{ fontSize: '90px', opacity: 0.1 }}>🍸</span>
+        }
         <div style={{ position: 'absolute', bottom: '14px', left: '14px', display: 'flex', gap: '8px' }}>
           <span style={{ background: methodColor[recipe.method] || C.sage, color: C.parchment, padding: '5px 12px', borderRadius: '20px', fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', fontFamily: "'Josefin Sans', sans-serif", fontWeight: 600 }}>{recipe.method}</span>
           {recipe.glass && <span style={{ background: 'rgba(44,31,20,0.5)', color: C.parchment, padding: '5px 12px', borderRadius: '20px', fontSize: '9px', fontFamily: "'Josefin Sans', sans-serif" }}>{recipe.glass}</span>}
@@ -397,9 +468,12 @@ function AddView({ onSave }) {
     { id: 3, name: 'Citrus',   amt: '0.75', ingUnit: 'oz'     },
     { id: 4, name: 'Bitters',  amt: '2',    ingUnit: 'dashes' },
   ])
-  const [saving, setSaving] = useState(false)
-  const [saved,  setSaved]  = useState(false)
-  const [error,  setError]  = useState('')
+  const [saving,    setSaving]    = useState(false)
+  const [saved,     setSaved]     = useState(false)
+  const [error,     setError]     = useState('')
+  const [imageSrc,  setImageSrc]  = useState(null)
+  const [croppedImg, setCroppedImg] = useState(null)
+  const fileRef = useRef()
 
   const switchGlobalUnit = (u) => {
     if (u === globalUnit) return
@@ -420,6 +494,15 @@ function AddView({ onSave }) {
   const addGarnish    = (g) => { const t = g.trim(); if (!t || garnishes.includes(t)) return; setGarnishes(p => [...p, t]); setGarnishInput('') }
   const removeGarnish = (g) => setGarnishes(p => p.filter(x => x !== g))
 
+  const onFileChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => setImageSrc(reader.result)
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
   const handleSave = async () => {
     if (!name.trim()) return
     setSaving(true)
@@ -427,7 +510,7 @@ function AddView({ onSave }) {
     try {
       const recipe = await apiFetch('/api/recipes', {
         method: 'POST',
-        body: { name: name.trim(), method, glass, baseServes: serves, notes, garnishes, ingredients },
+        body: { name: name.trim(), method, glass, baseServes: serves, notes, garnishes, ingredients, image: croppedImg || undefined },
       })
       onSave(recipe)
       setSaved(true)
@@ -443,7 +526,38 @@ function AddView({ onSave }) {
   const availableChips = GARNISH_CHIPS.filter(g => !garnishes.includes(g))
 
   return (
+    <>
+    {imageSrc && (
+      <CropModal
+        src={imageSrc}
+        onDone={(dataUrl) => { setCroppedImg(dataUrl); setImageSrc(null) }}
+        onCancel={() => setImageSrc(null)}
+      />
+    )}
+
     <div style={{ padding: '24px 20px 60px', maxWidth: '540px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+
+      {/* Photo */}
+      <div>
+        <label style={lbl}>Photo</label>
+        <input ref={fileRef} type="file" accept="image/*" onChange={onFileChange} style={{ display: 'none' }} />
+        {croppedImg ? (
+          <div style={{ position: 'relative', width: '100%', aspectRatio: '1', borderRadius: '12px', overflow: 'hidden', cursor: 'pointer' }} onClick={() => fileRef.current.click()}>
+            <img src={croppedImg} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <div style={{ position: 'absolute', inset: 0, background: 'rgba(44,31,20,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.15s' }}
+              onMouseEnter={e => e.currentTarget.style.opacity = 1}
+              onMouseLeave={e => e.currentTarget.style.opacity = 0}>
+              <span style={{ color: C.parchment, fontFamily: "'Josefin Sans', sans-serif", fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Change photo</span>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => fileRef.current.click()}
+            style={{ width: '100%', aspectRatio: '1', background: C.parchmentMid, border: `0.5px dashed rgba(84,58,39,0.35)`, borderRadius: '12px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '10px', color: C.herb, fontFamily: "'Josefin Sans', sans-serif", fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: '36px', opacity: 0.25 }}>🍸</span>
+            + Add photo
+          </button>
+        )}
+      </div>
 
       <div>
         <label style={lbl}>Cocktail name</label>
@@ -560,6 +674,7 @@ function AddView({ onSave }) {
         {saved ? '✓  Recipe saved' : saving ? 'Saving…' : 'Save recipe'}
       </button>
     </div>
+    </>
   )
 }
 

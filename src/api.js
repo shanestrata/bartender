@@ -54,33 +54,46 @@ router.get('/auth/me', requireAuth, (req, res) => {
 
 router.get('/recipes', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
-    'SELECT * FROM recipes ORDER BY created_at DESC'
+    'SELECT id, name, method, glass, base_serves, garnishes, notes, ingredients, created_at, (image IS NOT NULL) AS has_image FROM recipes ORDER BY created_at DESC'
   );
   res.json(rows.map(dbToClient));
 });
 
 router.post('/recipes', requireAuth, async (req, res) => {
   const r = req.body;
+  const imageData = r.image ? Buffer.from(r.image.split(',')[1], 'base64') : null;
+  const imageMime = r.image ? (r.image.split(';')[0].split(':')[1] || 'image/jpeg') : null;
   const { rows } = await pool.query(
-    `INSERT INTO recipes (name, method, glass, base_serves, garnishes, notes, ingredients, created_by)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+    `INSERT INTO recipes (name, method, glass, base_serves, garnishes, notes, ingredients, created_by, image, image_mime)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id, name, method, glass, base_serves, garnishes, notes, ingredients, created_at, (image IS NOT NULL) AS has_image`,
     [r.name, r.method, r.glass || null, r.baseServes || 1,
      JSON.stringify(r.garnishes || []), r.notes || null,
-     JSON.stringify(r.ingredients || []), req.user.id]
+     JSON.stringify(r.ingredients || []), req.user.id, imageData, imageMime]
   );
   res.status(201).json(dbToClient(rows[0]));
 });
 
 router.put('/recipes/:id', requireAuth, async (req, res) => {
   const r = req.body;
-  const { rows } = await pool.query(
-    `UPDATE recipes SET name=$1, method=$2, glass=$3, base_serves=$4,
-     garnishes=$5, notes=$6, ingredients=$7, updated_at=now()
-     WHERE id=$8 RETURNING *`,
-    [r.name, r.method, r.glass || null, r.baseServes || 1,
-     JSON.stringify(r.garnishes || []), r.notes || null,
-     JSON.stringify(r.ingredients || []), req.params.id]
-  );
+  let query, params;
+  if (r.image !== undefined) {
+    const imageData = r.image ? Buffer.from(r.image.split(',')[1], 'base64') : null;
+    const imageMime = r.image ? (r.image.split(';')[0].split(':')[1] || 'image/jpeg') : null;
+    query = `UPDATE recipes SET name=$1, method=$2, glass=$3, base_serves=$4,
+             garnishes=$5, notes=$6, ingredients=$7, image=$8, image_mime=$9, updated_at=now()
+             WHERE id=$10 RETURNING id, name, method, glass, base_serves, garnishes, notes, ingredients, created_at, (image IS NOT NULL) AS has_image`;
+    params = [r.name, r.method, r.glass || null, r.baseServes || 1,
+              JSON.stringify(r.garnishes || []), r.notes || null,
+              JSON.stringify(r.ingredients || []), imageData, imageMime, req.params.id];
+  } else {
+    query = `UPDATE recipes SET name=$1, method=$2, glass=$3, base_serves=$4,
+             garnishes=$5, notes=$6, ingredients=$7, updated_at=now()
+             WHERE id=$8 RETURNING id, name, method, glass, base_serves, garnishes, notes, ingredients, created_at, (image IS NOT NULL) AS has_image`;
+    params = [r.name, r.method, r.glass || null, r.baseServes || 1,
+              JSON.stringify(r.garnishes || []), r.notes || null,
+              JSON.stringify(r.ingredients || []), req.params.id];
+  }
+  const { rows } = await pool.query(query, params);
   if (!rows[0]) return res.status(404).json({ error: 'Not found' });
   res.json(dbToClient(rows[0]));
 });
@@ -88,6 +101,18 @@ router.put('/recipes/:id', requireAuth, async (req, res) => {
 router.delete('/recipes/:id', requireAuth, async (req, res) => {
   await pool.query('DELETE FROM recipes WHERE id=$1', [req.params.id]);
   res.json({ ok: true });
+});
+
+// Serve recipe image — public so the <img> tag can load it without cookie complexity
+router.get('/recipes/:id/image', requireAuth, async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT image, image_mime FROM recipes WHERE id=$1', [req.params.id]
+  );
+  const r = rows[0];
+  if (!r?.image) return res.status(404).end();
+  res.set('Content-Type', r.image_mime || 'image/jpeg');
+  res.set('Cache-Control', 'private, max-age=86400');
+  res.send(r.image);
 });
 
 function dbToClient(r) {
@@ -101,6 +126,7 @@ function dbToClient(r) {
     notes:       r.notes,
     ingredients: r.ingredients,
     createdAt:   r.created_at,
+    hasImage:    r.has_image,
   };
 }
 

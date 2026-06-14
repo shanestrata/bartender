@@ -8,7 +8,7 @@ const api = require('./src/api');
 const app = express();
 app.set('trust proxy', 1);
 
-app.use(express.json());
+app.use(express.json({ limit: '12mb' }));
 app.use(cookieParser());
 
 app.use('/api', api);
