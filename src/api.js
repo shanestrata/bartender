@@ -140,7 +140,9 @@ ${text}`
       }],
     });
 
-    const parsed = JSON.parse(message.content[0].text.trim());
+    // Strip markdown code fences if present
+    const raw = message.content[0].text.trim().replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');
+    const parsed = JSON.parse(raw);
     res.json(parsed);
   } catch (e) {
     console.error('[parse] error:', e.message);
