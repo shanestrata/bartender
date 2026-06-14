@@ -13,7 +13,7 @@ const C = {
 
 const OZ_TO_ML = 29.5735
 function fmtOz(n)   { return parseFloat((Math.round(n * 4) / 4).toFixed(2)).toString() }
-function fmtMl(n)   { return n < 10 ? parseFloat(n.toFixed(1)).toString() : (Math.round(n * 2) / 2).toString() }
+function fmtMl(n)   { return Math.round(n).toString() }
 function fmtDash(n) { return Math.max(1, Math.round(n)).toString() }
 
 function scaleAmt(amt, unit, serves) {
