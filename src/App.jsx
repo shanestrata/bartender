@@ -247,7 +247,7 @@ function Nav({ view, setView, query, setQuery, user, onLogout }) {
         <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
           <button onClick={() => setView('ai')}
             style={{ background: 'transparent', border: `0.5px solid rgba(255,255,255,0.18)`, borderRadius: '8px', padding: '8px 14px', color: C.herb, fontFamily: "'Josefin Sans', sans-serif", fontSize: '9px', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}>
-            Barback
+            Quick Add
           </button>
           <button onClick={() => setView('add')}
             style={{ background: C.mahogany, border: 'none', borderRadius: '8px', padding: '8px 16px', color: C.parchment, fontFamily: "'Josefin Sans', sans-serif", fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 600, cursor: 'pointer' }}>
@@ -756,7 +756,7 @@ function AiImportView({ onParsed }) {
   return (
     <div style={{ padding: '24px 20px 60px', maxWidth: '540px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div>
-        <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: '26px', color: C.espresso, marginBottom: '6px' }}>Barback</div>
+        <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: '26px', color: C.espresso, marginBottom: '6px' }}>Quick Add</div>
         <div style={{ fontFamily: "'EB Garamond', serif", fontStyle: 'italic', fontSize: '14px', color: C.herb, lineHeight: 1.6 }}>
           Paste a recipe from anywhere — a website, a photo, a napkin scrawl — and your barback will have it ready for you to look over before it goes in the book.
         </div>
