@@ -1,6 +1,7 @@
 const express   = require('express');
 const bcrypt    = require('bcryptjs');
-const Anthropic = require('@anthropic-ai/sdk');
+const AnthropicPkg = require('@anthropic-ai/sdk');
+const Anthropic = AnthropicPkg.default ?? AnthropicPkg;
 const { pool } = require('./db');
 const { sign, setCookie, clearCookie, requireAuth } = require('./auth');
 
@@ -112,12 +113,13 @@ router.post('/recipes/parse', requireAuth, async (req, res) => {
   const { text } = req.body;
   if (!text?.trim()) return res.status(400).json({ error: 'No recipe text provided' });
 
-  const message = await anthropic.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1024,
-    messages: [{
-      role: 'user',
-      content: `Parse this cocktail recipe into JSON. Return ONLY valid JSON, no markdown, no explanation.
+  try {
+    const message = await anthropic.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: `Parse this cocktail recipe into JSON. Return ONLY valid JSON, no markdown, no explanation.
 
 Schema:
 {
@@ -135,14 +137,14 @@ Convert any measurements to oz where possible.
 
 Recipe:
 ${text}`
-    }],
-  });
+      }],
+    });
 
-  try {
     const parsed = JSON.parse(message.content[0].text.trim());
     res.json(parsed);
-  } catch {
-    res.status(422).json({ error: 'Could not parse recipe — try pasting just the ingredients and instructions' });
+  } catch (e) {
+    console.error('[parse] error:', e.message);
+    res.status(422).json({ error: e.message });
   }
 });
 
