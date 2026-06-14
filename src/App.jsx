@@ -340,9 +340,12 @@ function BrowseView({ recipes, setView, setDetail, loading }) {
 
 // ─── Detail View ──────────────────────────────────────────────────────────────
 
-function DetailView({ recipe, setView, onDelete }) {
-  const [serves, setServes] = useState(1)
-  const [unit,   setUnit]   = useState('oz')
+function DetailView({ recipe, setView, onDelete, onEdit, onDuplicate, onUpdate }) {
+  const [serves,        setServes]        = useState(1)
+  const [unit,          setUnit]          = useState('oz')
+  const [variantText,   setVariantText]   = useState(recipe.variants || '')
+  const [variantSaving, setVariantSaving] = useState(false)
+  const [variantSaved,  setVariantSaved]  = useState(false)
 
   const getDisplay = (ing) => {
     if (ing.ingUnit === 'dashes') {
@@ -360,6 +363,21 @@ function DetailView({ recipe, setView, onDelete }) {
     setView('browse')
   }
 
+  const saveVariants = async () => {
+    setVariantSaving(true)
+    try {
+      const updated = await apiFetch(`/api/recipes/${recipe.id}`, {
+        method: 'PUT',
+        body: { ...recipe, variants: variantText },
+      })
+      onUpdate(updated)
+      setVariantSaved(true)
+      setTimeout(() => setVariantSaved(false), 2000)
+    } finally {
+      setVariantSaving(false)
+    }
+  }
+
   return (
     <div style={{ maxWidth: '560px', margin: '0 auto', paddingBottom: '60px' }}>
       <div style={{ padding: '16px 20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -367,10 +385,20 @@ function DetailView({ recipe, setView, onDelete }) {
           style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: C.herb, fontFamily: "'Josefin Sans', sans-serif", fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase', padding: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
           ← Back
         </button>
-        <button onClick={handleDelete}
-          style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: C.herb, fontFamily: "'Josefin Sans', sans-serif", fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.5 }}>
-          Delete
-        </button>
+        <div style={{ display: 'flex', gap: '14px', alignItems: 'center' }}>
+          <button onClick={() => onDuplicate(recipe)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: C.herb, fontFamily: "'Josefin Sans', sans-serif", fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.6 }}>
+            Duplicate
+          </button>
+          <button onClick={() => onEdit(recipe)}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: C.herb, fontFamily: "'Josefin Sans', sans-serif", fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.6 }}>
+            Edit
+          </button>
+          <button onClick={handleDelete}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: C.herb, fontFamily: "'Josefin Sans', sans-serif", fontSize: '9px', letterSpacing: '0.1em', textTransform: 'uppercase', opacity: 0.4 }}>
+            Delete
+          </button>
+        </div>
       </div>
 
       <div style={{ margin: '16px 20px', borderRadius: '14px', background: C.parchmentMid, height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
@@ -446,6 +474,24 @@ function DetailView({ recipe, setView, onDelete }) {
             </div>
           </div>
         )}
+
+        {/* Variants */}
+        <div>
+          <div style={lbl}>Variations & tweaks</div>
+          <textarea
+            value={variantText}
+            onChange={e => { setVariantText(e.target.value); setVariantSaved(false) }}
+            placeholder="e.g. Try with mezcal instead of gin · Add a pinch of salt · Use honey syrup for a richer finish…"
+            rows={4}
+            style={inpStyle({ width: '100%', padding: '12px 14px', fontSize: '13px', resize: 'vertical', lineHeight: '1.7', fontFamily: "'EB Garamond', serif", boxSizing: 'border-box' })}
+          />
+          <button
+            onClick={saveVariants}
+            disabled={variantSaving || variantText === (recipe.variants || '')}
+            style={{ marginTop: '8px', background: variantSaved ? C.sage : C.parchmentMid, border: 'none', borderRadius: '8px', padding: '9px 18px', fontSize: '9px', letterSpacing: '0.14em', textTransform: 'uppercase', color: variantSaved ? C.parchment : C.mahogany, fontFamily: "'Josefin Sans', sans-serif", fontWeight: 600, cursor: 'pointer', transition: 'background 0.2s', opacity: (variantSaving || variantText === (recipe.variants || '')) ? 0.4 : 1 }}>
+            {variantSaved ? '✓ Saved' : 'Save variations'}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -453,16 +499,17 @@ function DetailView({ recipe, setView, onDelete }) {
 
 // ─── Add View ─────────────────────────────────────────────────────────────────
 
-function AddView({ onSave }) {
-  const [name,         setName]         = useState('')
-  const [method,       setMethod]       = useState('stirred')
-  const [glass,        setGlass]        = useState('')
-  const [serves,       setServes]       = useState(1)
+function AddView({ onSave, initialRecipe }) {
+  const editing = !!initialRecipe
+  const [name,         setName]         = useState(initialRecipe?.name        || '')
+  const [method,       setMethod]       = useState(initialRecipe?.method      || 'stirred')
+  const [glass,        setGlass]        = useState(initialRecipe?.glass       || '')
+  const [serves,       setServes]       = useState(initialRecipe?.baseServes  || 1)
   const [globalUnit,   setGlobalUnit]   = useState('oz')
-  const [garnishes,    setGarnishes]    = useState([])
+  const [garnishes,    setGarnishes]    = useState(initialRecipe?.garnishes   || [])
   const [garnishInput, setGarnishInput] = useState('')
-  const [notes,        setNotes]        = useState('')
-  const [ingredients,  setIngredients]  = useState([
+  const [notes,        setNotes]        = useState(initialRecipe?.notes       || '')
+  const [ingredients,  setIngredients]  = useState(initialRecipe?.ingredients || [
     { id: 1, name: 'Spirit',   amt: '2',    ingUnit: 'oz'     },
     { id: 2, name: 'Modifier', amt: '1',    ingUnit: 'oz'     },
     { id: 3, name: 'Citrus',   amt: '0.75', ingUnit: 'oz'     },
@@ -508,8 +555,9 @@ function AddView({ onSave }) {
     setSaving(true)
     setError('')
     try {
-      const recipe = await apiFetch('/api/recipes', {
-        method: 'POST',
+      const url    = editing ? `/api/recipes/${initialRecipe.id}` : '/api/recipes'
+      const recipe = await apiFetch(url, {
+        method: editing ? 'PUT' : 'POST',
         body: { name: name.trim(), method, glass, baseServes: serves, notes, garnishes, ingredients, image: croppedImg || undefined },
       })
       onSave(recipe)
@@ -671,7 +719,7 @@ function AddView({ onSave }) {
 
       <button onClick={handleSave} disabled={saving}
         style={{ background: saved ? C.sage : C.espresso, color: C.parchment, border: 'none', borderRadius: '8px', padding: '15px 24px', fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', fontFamily: "'Josefin Sans', sans-serif", fontWeight: 600, width: '100%', cursor: 'pointer', transition: 'background 0.25s', opacity: saving ? 0.6 : 1 }}>
-        {saved ? '✓  Recipe saved' : saving ? 'Saving…' : 'Save recipe'}
+        {saved ? '✓  Saved' : saving ? 'Saving…' : editing ? 'Save changes' : 'Save recipe'}
       </button>
     </div>
     </>
@@ -685,11 +733,11 @@ export default function App() {
   const [checked, setChecked] = useState(false)
   const [view,    setView]    = useState('browse')
   const [detail,  setDetail]  = useState(null)
+  const [editRecipe, setEditRecipe] = useState(null)
   const [recipes, setRecipes] = useState([])
   const [loading, setLoading] = useState(false)
   const [query,   setQuery]   = useState('')
 
-  // Check existing session on load
   useEffect(() => {
     apiFetch('/api/auth/me')
       .then(({ user }) => setUser(user))
@@ -697,7 +745,6 @@ export default function App() {
       .finally(() => setChecked(true))
   }, [])
 
-  // Load recipes once authenticated
   useEffect(() => {
     if (!user) return
     setLoading(true)
@@ -710,28 +757,65 @@ export default function App() {
   const handleAuth   = (u) => setUser(u)
   const handleLogout = async () => {
     await apiFetch('/api/auth/logout', { method: 'POST' })
-    setUser(null)
-    setRecipes([])
-    setView('browse')
+    setUser(null); setRecipes([]); setView('browse')
   }
 
-  const handleSave   = (recipe) => { setRecipes(p => [recipe, ...p]); setView('browse') }
-  const handleDelete = (id)     => setRecipes(p => p.filter(r => r.id !== id))
+  const handleSave = (recipe) => {
+    if (editRecipe) {
+      setRecipes(p => p.map(r => r.id === recipe.id ? recipe : r))
+      setDetail(recipe)
+      setView('detail')
+    } else {
+      setRecipes(p => [recipe, ...p])
+      setView('browse')
+    }
+    setEditRecipe(null)
+  }
+
+  const handleDelete    = (id)     => setRecipes(p => p.filter(r => r.id !== id))
+  const handleUpdate    = (recipe) => { setRecipes(p => p.map(r => r.id === recipe.id ? recipe : r)); setDetail(recipe) }
+
+  const handleEdit = (recipe) => {
+    setEditRecipe(recipe)
+    setView('add')
+  }
+
+  const handleDuplicate = async (recipe) => {
+    const copy = await apiFetch('/api/recipes', {
+      method: 'POST',
+      body: {
+        ...recipe,
+        name: `Copy of ${recipe.name}`,
+        image: undefined,
+      },
+    })
+    setEditRecipe(copy)
+    setRecipes(p => [copy, ...p])
+    setView('add')
+  }
 
   const filtered = recipes.filter(r =>
     !query || r.name.toLowerCase().includes(query.toLowerCase())
   )
 
   if (!checked) return null
-
   if (!user) return <AuthScreen onAuth={handleAuth} />
 
   return (
     <div style={{ fontFamily: "'Josefin Sans', sans-serif", background: C.parchment, minHeight: '100vh' }}>
-      <Nav view={view} setView={setView} query={query} setQuery={setQuery} user={user} onLogout={handleLogout} />
+      <Nav view={view} setView={(v) => { if (v !== 'add') setEditRecipe(null); setView(v) }} query={query} setQuery={setQuery} user={user} onLogout={handleLogout} />
       {view === 'browse' && <BrowseView recipes={filtered} setView={setView} setDetail={setDetail} loading={loading} />}
-      {view === 'detail' && detail && <DetailView recipe={detail} setView={setView} onDelete={handleDelete} />}
-      {view === 'add'    && <AddView onSave={handleSave} />}
+      {view === 'detail' && detail && (
+        <DetailView
+          recipe={detail}
+          setView={setView}
+          onDelete={handleDelete}
+          onEdit={handleEdit}
+          onDuplicate={handleDuplicate}
+          onUpdate={handleUpdate}
+        />
+      )}
+      {view === 'add' && <AddView onSave={handleSave} initialRecipe={editRecipe} />}
     </div>
   )
 }

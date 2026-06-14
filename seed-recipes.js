@@ -19,6 +19,19 @@ const recipes = [
       { id: 4, name: 'Sauvignon Blanc',        amt: '1',   ingUnit: 'oz' },
     ]),
   },
+  {
+    name: 'Belmont Jewel',
+    method: 'built',
+    glass: 'Rocks',
+    base_serves: 1,
+    garnishes: JSON.stringify(['Lemon wedge', 'Orange twist']),
+    notes: 'Build over ice in a rocks glass. Add bourbon, then pomegranate juice, then lemonade. Stir gently to combine.',
+    ingredients: JSON.stringify([
+      { id: 1, name: 'Bourbon',          amt: '1.5', ingUnit: 'oz' },
+      { id: 2, name: 'Lemonade',         amt: '2',   ingUnit: 'oz' },
+      { id: 3, name: 'Pomegranate juice', amt: '1',  ingUnit: 'oz' },
+    ]),
+  },
 ];
 
 (async () => {

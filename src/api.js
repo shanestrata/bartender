@@ -54,7 +54,7 @@ router.get('/auth/me', requireAuth, (req, res) => {
 
 router.get('/recipes', requireAuth, async (req, res) => {
   const { rows } = await pool.query(
-    'SELECT id, name, method, glass, base_serves, garnishes, notes, ingredients, created_at, (image IS NOT NULL) AS has_image FROM recipes ORDER BY created_at DESC'
+    'SELECT id, name, method, glass, base_serves, garnishes, notes, variants, ingredients, created_at, (image IS NOT NULL) AS has_image FROM recipes ORDER BY created_at DESC'
   );
   res.json(rows.map(dbToClient));
 });
@@ -64,10 +64,10 @@ router.post('/recipes', requireAuth, async (req, res) => {
   const imageData = r.image ? Buffer.from(r.image.split(',')[1], 'base64') : null;
   const imageMime = r.image ? (r.image.split(';')[0].split(':')[1] || 'image/jpeg') : null;
   const { rows } = await pool.query(
-    `INSERT INTO recipes (name, method, glass, base_serves, garnishes, notes, ingredients, created_by, image, image_mime)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id, name, method, glass, base_serves, garnishes, notes, ingredients, created_at, (image IS NOT NULL) AS has_image`,
+    `INSERT INTO recipes (name, method, glass, base_serves, garnishes, notes, variants, ingredients, created_by, image, image_mime)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id, name, method, glass, base_serves, garnishes, notes, variants, ingredients, created_at, (image IS NOT NULL) AS has_image`,
     [r.name, r.method, r.glass || null, r.baseServes || 1,
-     JSON.stringify(r.garnishes || []), r.notes || null,
+     JSON.stringify(r.garnishes || []), r.notes || null, r.variants || null,
      JSON.stringify(r.ingredients || []), req.user.id, imageData, imageMime]
   );
   res.status(201).json(dbToClient(rows[0]));
@@ -80,17 +80,17 @@ router.put('/recipes/:id', requireAuth, async (req, res) => {
     const imageData = r.image ? Buffer.from(r.image.split(',')[1], 'base64') : null;
     const imageMime = r.image ? (r.image.split(';')[0].split(':')[1] || 'image/jpeg') : null;
     query = `UPDATE recipes SET name=$1, method=$2, glass=$3, base_serves=$4,
-             garnishes=$5, notes=$6, ingredients=$7, image=$8, image_mime=$9, updated_at=now()
-             WHERE id=$10 RETURNING id, name, method, glass, base_serves, garnishes, notes, ingredients, created_at, (image IS NOT NULL) AS has_image`;
+             garnishes=$5, notes=$6, variants=$7, ingredients=$8, image=$9, image_mime=$10, updated_at=now()
+             WHERE id=$11 RETURNING id, name, method, glass, base_serves, garnishes, notes, variants, ingredients, created_at, (image IS NOT NULL) AS has_image`;
     params = [r.name, r.method, r.glass || null, r.baseServes || 1,
-              JSON.stringify(r.garnishes || []), r.notes || null,
+              JSON.stringify(r.garnishes || []), r.notes || null, r.variants || null,
               JSON.stringify(r.ingredients || []), imageData, imageMime, req.params.id];
   } else {
     query = `UPDATE recipes SET name=$1, method=$2, glass=$3, base_serves=$4,
-             garnishes=$5, notes=$6, ingredients=$7, updated_at=now()
-             WHERE id=$8 RETURNING id, name, method, glass, base_serves, garnishes, notes, ingredients, created_at, (image IS NOT NULL) AS has_image`;
+             garnishes=$5, notes=$6, variants=$7, ingredients=$8, updated_at=now()
+             WHERE id=$9 RETURNING id, name, method, glass, base_serves, garnishes, notes, variants, ingredients, created_at, (image IS NOT NULL) AS has_image`;
     params = [r.name, r.method, r.glass || null, r.baseServes || 1,
-              JSON.stringify(r.garnishes || []), r.notes || null,
+              JSON.stringify(r.garnishes || []), r.notes || null, r.variants || null,
               JSON.stringify(r.ingredients || []), req.params.id];
   }
   const { rows } = await pool.query(query, params);
@@ -124,6 +124,7 @@ function dbToClient(r) {
     baseServes:  r.base_serves,
     garnishes:   r.garnishes,
     notes:       r.notes,
+    variants:    r.variants,
     ingredients: r.ingredients,
     createdAt:   r.created_at,
     hasImage:    r.has_image,
