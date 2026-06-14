@@ -335,8 +335,10 @@ function BrowseView({ recipes, setView, setDetail, loading }) {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '14px' }}>
-          {visible.map(r => (
-            <RecipeCard key={r.id} recipe={r} onClick={() => { setDetail(r); setView('detail') }} />
+          {visible.map((r, i) => (
+            <div key={r.id} style={{ animation: `cardReveal 0.4s ease both`, animationDelay: `${Math.min(i * 60, 400)}ms` }}>
+              <RecipeCard recipe={r} onClick={() => { setDetail(r); setView('detail') }} />
+            </div>
           ))}
         </div>
       )}
@@ -783,6 +785,34 @@ function AiImportView({ onParsed }) {
   )
 }
 
+// ─── Toast ────────────────────────────────────────────────────────────────────
+
+function Toast({ message, onDone }) {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const show = setTimeout(() => setVisible(true), 10)
+    const hide = setTimeout(() => setVisible(false), 2800)
+    const done = setTimeout(onDone, 3400)
+    return () => { clearTimeout(show); clearTimeout(hide); clearTimeout(done) }
+  }, [])
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: '32px', left: '50%', transform: `translateX(-50%) translateY(${visible ? '0' : '16px'})`,
+      opacity: visible ? 1 : 0, transition: 'opacity 0.4s ease, transform 0.4s ease',
+      background: C.espresso, color: C.parchment, borderRadius: '10px',
+      padding: '14px 24px', display: 'flex', alignItems: 'center', gap: '10px',
+      fontFamily: "'Josefin Sans', sans-serif", fontSize: '10px', letterSpacing: '0.14em',
+      textTransform: 'uppercase', zIndex: 200, boxShadow: '0 8px 32px rgba(44,31,20,0.35)',
+      pointerEvents: 'none', whiteSpace: 'nowrap',
+    }}>
+      <span style={{ color: C.sage, fontSize: '14px' }}>✓</span>
+      {message}
+    </div>
+  )
+}
+
 // ─── App root ─────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -794,6 +824,7 @@ export default function App() {
   const [recipes, setRecipes] = useState([])
   const [loading, setLoading] = useState(false)
   const [query,   setQuery]   = useState('')
+  const [toast,   setToast]   = useState(null)
 
   useEffect(() => {
     apiFetch('/api/auth/me')
@@ -818,13 +849,15 @@ export default function App() {
   }
 
   const handleSave = (recipe) => {
-    if (editRecipe) {
+    if (editRecipe?.id) {
       setRecipes(p => p.map(r => r.id === recipe.id ? recipe : r))
       setDetail(recipe)
       setView('detail')
+      setToast(`${recipe.name} updated`)
     } else {
       setRecipes(p => [recipe, ...p])
       setView('browse')
+      setToast(`${recipe.name} added to The Grove Bar`)
     }
     setEditRecipe(null)
   }
@@ -865,6 +898,12 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: "'Josefin Sans', sans-serif", background: C.parchment, minHeight: '100vh' }}>
+      <style>{`
+        @keyframes cardReveal {
+          from { opacity: 0; transform: translateY(18px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
       <Nav view={view} setView={(v) => { if (v !== 'add' && v !== 'ai') setEditRecipe(null); setView(v) }} query={query} setQuery={setQuery} user={user} onLogout={handleLogout} />
       {view === 'browse' && <BrowseView recipes={filtered} setView={setView} setDetail={setDetail} loading={loading} />}
       {view === 'detail' && detail && (
@@ -879,6 +918,7 @@ export default function App() {
       )}
       {view === 'add' && <AddView onSave={handleSave} initialRecipe={editRecipe} />}
       {view === 'ai'  && <AiImportView onParsed={handleAiParsed} />}
+      {toast && <Toast key={toast + Date.now()} message={toast} onDone={() => setToast(null)} />}
     </div>
   )
 }
