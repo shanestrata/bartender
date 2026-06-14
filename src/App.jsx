@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import Cropper from 'react-easy-crop'
+import 'react-easy-crop/react-easy-crop.css'
 
 const C = {
   espresso:       '#2C1F14',
