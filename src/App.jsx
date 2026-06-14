@@ -247,7 +247,7 @@ function Nav({ view, setView, query, setQuery, user, onLogout }) {
         <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
           <button onClick={() => setView('ai')}
             style={{ background: 'transparent', border: `0.5px solid rgba(255,255,255,0.18)`, borderRadius: '8px', padding: '8px 14px', color: C.herb, fontFamily: "'Josefin Sans', sans-serif", fontSize: '9px', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}>
-            ✦ AI
+            Barback
           </button>
           <button onClick={() => setView('add')}
             style={{ background: C.mahogany, border: 'none', borderRadius: '8px', padding: '8px 16px', color: C.parchment, fontFamily: "'Josefin Sans', sans-serif", fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 600, cursor: 'pointer' }}>
@@ -739,7 +739,7 @@ function AiImportView({ onParsed }) {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
 
-  const handleParse = async () => {
+  const handleSubmit = async () => {
     if (!text.trim()) return
     setLoading(true)
     setError('')
@@ -747,7 +747,7 @@ function AiImportView({ onParsed }) {
       const recipe = await apiFetch('/api/recipes/parse', { method: 'POST', body: { text } })
       onParsed(recipe)
     } catch (e) {
-      setError(e.message)
+      setError("Couldn't make sense of that one — try including the name, ingredients, and how it's made.")
     } finally {
       setLoading(false)
     }
@@ -756,28 +756,28 @@ function AiImportView({ onParsed }) {
   return (
     <div style={{ padding: '24px 20px 60px', maxWidth: '540px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
       <div>
-        <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: '26px', color: C.espresso, marginBottom: '6px' }}>AI Recipe Import</div>
+        <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: '26px', color: C.espresso, marginBottom: '6px' }}>Barback</div>
         <div style={{ fontFamily: "'EB Garamond', serif", fontStyle: 'italic', fontSize: '14px', color: C.herb, lineHeight: 1.6 }}>
-          Paste a recipe — ingredients, method, garnish, technique — and the AI will parse it into the recipe form for you to review and save.
+          Paste a recipe from anywhere — a website, a photo, a napkin scrawl — and your barback will have it ready for you to look over before it goes in the book.
         </div>
       </div>
 
       <div>
-        <label style={lbl}>Paste recipe text</label>
+        <label style={lbl}>Drop your recipe here</label>
         <textarea
           value={text}
           onChange={e => setText(e.target.value)}
-          placeholder={`e.g.\n\nNegroni\n1 oz gin\n1 oz sweet vermouth\n1 oz Campari\n\nStir over ice. Strain into rocks glass. Garnish with orange peel.`}
+          placeholder={'Negroni\n\n1 oz gin\n1 oz sweet vermouth\n1 oz Campari\n\nStir over ice. Strain into rocks glass. Garnish with an orange peel.'}
           rows={14}
           style={inpStyle({ width: '100%', padding: '14px', fontSize: '13px', resize: 'vertical', lineHeight: '1.75', fontFamily: "'EB Garamond', serif", boxSizing: 'border-box' })}
         />
       </div>
 
-      {error && <div style={{ color: C.mahogany, fontFamily: "'Josefin Sans', sans-serif", fontSize: '12px' }}>{error}</div>}
+      {error && <div style={{ color: C.mahogany, fontFamily: "'EB Garamond', serif", fontStyle: 'italic', fontSize: '14px' }}>{error}</div>}
 
-      <button onClick={handleParse} disabled={loading || !text.trim()}
-        style={{ background: loading ? C.sage : C.espresso, color: C.parchment, border: 'none', borderRadius: '8px', padding: '15px 24px', fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', fontFamily: "'Josefin Sans', sans-serif", fontWeight: 600, width: '100%', cursor: 'pointer', transition: 'background 0.25s', opacity: (!text.trim() && !loading) ? 0.5 : 1 }}>
-        {loading ? '✦  Parsing…' : '✦  Parse recipe'}
+      <button onClick={handleSubmit} disabled={loading || !text.trim()}
+        style={{ background: C.espresso, color: C.parchment, border: 'none', borderRadius: '8px', padding: '15px 24px', fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', fontFamily: "'Josefin Sans', sans-serif", fontWeight: 600, width: '100%', cursor: 'pointer', transition: 'opacity 0.2s', opacity: (loading || !text.trim()) ? 0.5 : 1 }}>
+        {loading ? 'On it…' : 'Set it up'}
       </button>
     </div>
   )
