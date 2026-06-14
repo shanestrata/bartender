@@ -53,10 +53,14 @@ const recipes = [
 
 (async () => {
   for (const r of recipes) {
+    const { rows } = await pool.query('SELECT id FROM recipes WHERE name = $1', [r.name]);
+    if (rows.length > 0) {
+      console.log('Skipped (already exists):', r.name);
+      continue;
+    }
     await pool.query(
       `INSERT INTO recipes (name, method, glass, base_serves, garnishes, notes, ingredients)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
-       ON CONFLICT DO NOTHING`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
       [r.name, r.method, r.glass, r.base_serves, r.garnishes, r.notes, r.ingredients]
     );
     console.log('Inserted:', r.name);

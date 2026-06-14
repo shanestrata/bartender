@@ -238,16 +238,22 @@ function Nav({ view, setView, query, setQuery, user, onLogout }) {
         </div>
       )}
 
-      {view !== 'add' ? (
-        <button onClick={() => setView('add')}
-          style={{ background: C.mahogany, border: 'none', borderRadius: '8px', padding: '8px 16px', color: C.parchment, fontFamily: "'Josefin Sans', sans-serif", fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
-          + Add
-        </button>
-      ) : (
+      {view === 'add' || view === 'ai' ? (
         <button onClick={() => setView('browse')}
           style={{ background: 'transparent', border: `0.5px solid rgba(255,255,255,0.2)`, borderRadius: '8px', padding: '8px 16px', color: C.herb, fontFamily: "'Josefin Sans', sans-serif", fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer', flexShrink: 0 }}>
           Cancel
         </button>
+      ) : (
+        <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+          <button onClick={() => setView('ai')}
+            style={{ background: 'transparent', border: `0.5px solid rgba(255,255,255,0.18)`, borderRadius: '8px', padding: '8px 14px', color: C.herb, fontFamily: "'Josefin Sans', sans-serif", fontSize: '9px', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}>
+            ✦ AI
+          </button>
+          <button onClick={() => setView('add')}
+            style={{ background: C.mahogany, border: 'none', borderRadius: '8px', padding: '8px 16px', color: C.parchment, fontFamily: "'Josefin Sans', sans-serif", fontSize: '9px', letterSpacing: '0.15em', textTransform: 'uppercase', fontWeight: 600, cursor: 'pointer' }}>
+            + Add
+          </button>
+        </div>
       )}
 
       <button onClick={onLogout}
@@ -726,6 +732,57 @@ function AddView({ onSave, initialRecipe }) {
   )
 }
 
+// ─── AI Import View ───────────────────────────────────────────────────────────
+
+function AiImportView({ onParsed }) {
+  const [text,    setText]    = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error,   setError]   = useState('')
+
+  const handleParse = async () => {
+    if (!text.trim()) return
+    setLoading(true)
+    setError('')
+    try {
+      const recipe = await apiFetch('/api/recipes/parse', { method: 'POST', body: { text } })
+      onParsed(recipe)
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ padding: '24px 20px 60px', maxWidth: '540px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div>
+        <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: '26px', color: C.espresso, marginBottom: '6px' }}>AI Recipe Import</div>
+        <div style={{ fontFamily: "'EB Garamond', serif", fontStyle: 'italic', fontSize: '14px', color: C.herb, lineHeight: 1.6 }}>
+          Paste a recipe — ingredients, method, garnish, technique — and the AI will parse it into the recipe form for you to review and save.
+        </div>
+      </div>
+
+      <div>
+        <label style={lbl}>Paste recipe text</label>
+        <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder={`e.g.\n\nNegroni\n1 oz gin\n1 oz sweet vermouth\n1 oz Campari\n\nStir over ice. Strain into rocks glass. Garnish with orange peel.`}
+          rows={14}
+          style={inpStyle({ width: '100%', padding: '14px', fontSize: '13px', resize: 'vertical', lineHeight: '1.75', fontFamily: "'EB Garamond', serif", boxSizing: 'border-box' })}
+        />
+      </div>
+
+      {error && <div style={{ color: C.mahogany, fontFamily: "'Josefin Sans', sans-serif", fontSize: '12px' }}>{error}</div>}
+
+      <button onClick={handleParse} disabled={loading || !text.trim()}
+        style={{ background: loading ? C.sage : C.espresso, color: C.parchment, border: 'none', borderRadius: '8px', padding: '15px 24px', fontSize: '10px', letterSpacing: '0.2em', textTransform: 'uppercase', fontFamily: "'Josefin Sans', sans-serif", fontWeight: 600, width: '100%', cursor: 'pointer', transition: 'background 0.25s', opacity: (!text.trim() && !loading) ? 0.5 : 1 }}>
+        {loading ? '✦  Parsing…' : '✦  Parse recipe'}
+      </button>
+    </div>
+  )
+}
+
 // ─── App root ─────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -780,6 +837,11 @@ export default function App() {
     setView('add')
   }
 
+  const handleAiParsed = (recipe) => {
+    setEditRecipe(recipe)
+    setView('add')
+  }
+
   const handleDuplicate = async (recipe) => {
     const copy = await apiFetch('/api/recipes', {
       method: 'POST',
@@ -803,7 +865,7 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: "'Josefin Sans', sans-serif", background: C.parchment, minHeight: '100vh' }}>
-      <Nav view={view} setView={(v) => { if (v !== 'add') setEditRecipe(null); setView(v) }} query={query} setQuery={setQuery} user={user} onLogout={handleLogout} />
+      <Nav view={view} setView={(v) => { if (v !== 'add' && v !== 'ai') setEditRecipe(null); setView(v) }} query={query} setQuery={setQuery} user={user} onLogout={handleLogout} />
       {view === 'browse' && <BrowseView recipes={filtered} setView={setView} setDetail={setDetail} loading={loading} />}
       {view === 'detail' && detail && (
         <DetailView
@@ -816,6 +878,7 @@ export default function App() {
         />
       )}
       {view === 'add' && <AddView onSave={handleSave} initialRecipe={editRecipe} />}
+      {view === 'ai'  && <AiImportView onParsed={handleAiParsed} />}
     </div>
   )
 }

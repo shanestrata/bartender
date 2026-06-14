@@ -1,7 +1,10 @@
-const express = require('express');
-const bcrypt  = require('bcryptjs');
+const express   = require('express');
+const bcrypt    = require('bcryptjs');
+const Anthropic = require('@anthropic-ai/sdk');
 const { pool } = require('./db');
 const { sign, setCookie, clearCookie, requireAuth } = require('./auth');
+
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 const router = express.Router();
 
@@ -101,6 +104,46 @@ router.put('/recipes/:id', requireAuth, async (req, res) => {
 router.delete('/recipes/:id', requireAuth, async (req, res) => {
   await pool.query('DELETE FROM recipes WHERE id=$1', [req.params.id]);
   res.json({ ok: true });
+});
+
+// ── AI recipe parser ──────────────────────────────────────────────────────────
+
+router.post('/recipes/parse', requireAuth, async (req, res) => {
+  const { text } = req.body;
+  if (!text?.trim()) return res.status(400).json({ error: 'No recipe text provided' });
+
+  const message = await anthropic.messages.create({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 1024,
+    messages: [{
+      role: 'user',
+      content: `Parse this cocktail recipe into JSON. Return ONLY valid JSON, no markdown, no explanation.
+
+Schema:
+{
+  "name": string,
+  "method": one of "stirred"|"shaken"|"built"|"blended"|"thrown",
+  "glass": one of "Rocks"|"Coupe"|"Martini"|"Highball"|"Collins"|"Nick & Nora"|"Flute"|"Wine"|"Tiki"|"Mule Mug"|"Neat" (pick closest),
+  "baseServes": number (default 1),
+  "garnishes": string[],
+  "notes": string (technique/preparation instructions),
+  "ingredients": [{ "id": number, "name": string, "amt": string, "ingUnit": "oz"|"ml"|"dashes" }]
+}
+
+For egg whites, whole eggs, or items measured by count, use "oz" with approximate volume (egg white = "1").
+Convert any measurements to oz where possible.
+
+Recipe:
+${text}`
+    }],
+  });
+
+  try {
+    const parsed = JSON.parse(message.content[0].text.trim());
+    res.json(parsed);
+  } catch {
+    res.status(422).json({ error: 'Could not parse recipe — try pasting just the ingredients and instructions' });
+  }
 });
 
 // Serve recipe image — public so the <img> tag can load it without cookie complexity
