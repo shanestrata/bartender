@@ -506,7 +506,7 @@ function DetailView({ recipe, setView, onDelete, onEdit, onDuplicate, onUpdate }
 // ─── Add View ─────────────────────────────────────────────────────────────────
 
 function AddView({ onSave, initialRecipe }) {
-  const editing = !!initialRecipe
+  const editing = !!(initialRecipe?.id)
   const [name,         setName]         = useState(initialRecipe?.name        || '')
   const [method,       setMethod]       = useState(initialRecipe?.method      || 'stirred')
   const [glass,        setGlass]        = useState(initialRecipe?.glass       || '')
